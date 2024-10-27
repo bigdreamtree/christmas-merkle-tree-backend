@@ -1,6 +1,23 @@
 use axum::{extract::Path, http::StatusCode, Json};
 use serde::Deserialize;
-use crate::models::message::Message;
+use crate::models::{Message, Tree};
+
+#[derive(Deserialize)]
+pub struct CreateTree {
+    pub account_hash: String,
+}
+
+pub async fn create_tree(Json(payload): Json<CreateTree>) -> (StatusCode, Json<Tree>) {
+    // TODO : Create Merkle Root
+
+    // TODO : Save to DB
+    let tree = Tree {
+        account_hash: payload.account_hash,
+        merkle_root: "merkle123".to_string(),
+    };
+
+    (StatusCode::CREATED, Json(tree))
+}
 
 pub async fn get_tree_messages(
     Path(_): Path<String>,

@@ -8,3 +8,9 @@ pub struct Message {
     pub merkle_root: String,
     pub body: Option<String>,  // Shown after duedate
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct Tree {
+    pub account_hash: String,
+    pub merkle_root: String,
+}
