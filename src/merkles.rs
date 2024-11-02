@@ -11,7 +11,6 @@ pub struct Message {
 
 #[derive(Serialize, Deserialize)]
 pub struct Tree {
-    pub account_id: String,
     pub account_hash: String,
     pub merkle_root: String,
 }

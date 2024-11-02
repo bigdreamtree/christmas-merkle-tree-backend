@@ -1,22 +1,84 @@
 use axum::{extract::Path, http::StatusCode, Json};
 use serde::Deserialize;
+use tlsn_core::presentation::{Presentation, PresentationOutput};
+use tlsn_core::CryptoProvider;
 use crate::models::{Message, Tree};
+use crate::utils::hash;
+use rs_merkle::{MerkleTree, algorithms::Sha256 as Sha256Algorithm};
+use sha2::{Sha256, Digest};
+use regex::Regex;
 
 #[derive(Deserialize)]
 pub struct CreateTree {
-    pub account_hash: String,
+    pub account_proof: String,
 }
 
-pub async fn create_tree(Json(payload): Json<CreateTree>) -> (StatusCode, Json<Tree>) {
-    // TODO : Create Merkle Root
+pub async fn create_tree(Json(payload): Json<CreateTree>) -> Result<Json<Tree>, StatusCode> {
+    // Decode Proof
+    let decoded_proof = match hex::decode(&payload.account_proof) {
+        Ok(proof) => proof,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+    let presentation: Presentation = match bincode::deserialize(&decoded_proof) {
+        Ok(presentation) => presentation,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    let provider = CryptoProvider::default();
+
+    // Verify the presentation.
+    let PresentationOutput {
+        transcript,
+        ..
+    } = presentation.verify(&provider).unwrap();
+
+    // The time at which the connection was started.
+    let mut partial_transcript = transcript.unwrap();
+    // Set the unauthenticated bytes so they are distinguishable.
+    partial_transcript.set_unauthed(b'X');
+
+    let recv = String::from_utf8_lossy(partial_transcript.received_unsafe());
+
+    // Parse recv data to get screen_name
+    let re = Regex::new(r#""screen_name":"([^"]+)""#).unwrap();
+    let caps = match re.captures(&recv) {
+        Some(caps) => caps,
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+    let screen_name = match caps.get(1) {
+        Some(screen_name) => screen_name.as_str().to_string(),
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    println!("Screen Name: {:?}", screen_name);
+
+    // Hash Account Proof
+    let mut hasher = Sha256::new();
+    hasher.update(&screen_name);
+    let account_hash: String = format!("{:X}", hasher.finalize());
+
+    let account_hash_bytes = match hash::string_to_hash(&account_hash) {
+        Ok(hash) => hash,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Create Merkle Tree
+    let mut merkle_tree: MerkleTree<Sha256Algorithm> = MerkleTree::<Sha256Algorithm>::new();
+    merkle_tree.insert(account_hash_bytes);
+    merkle_tree.commit();
+    let merkle_root_hex = match merkle_tree.root_hex() {
+        Some(root) => root,
+        None => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
 
     // TODO : Save to DB
     let tree = Tree {
-        account_hash: payload.account_hash,
-        merkle_root: "merkle123".to_string(),
+        account_id: screen_name,
+        account_hash,
+        merkle_root: merkle_root_hex,
     };
 
-    (StatusCode::CREATED, Json(tree))
+    Ok(Json(tree))
 }
 
 pub async fn get_tree_messages(
