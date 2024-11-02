@@ -9,6 +9,7 @@ use sha2::{Sha256, Digest};
 use regex::Regex;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTree {
     pub account_proof: String,
 }
