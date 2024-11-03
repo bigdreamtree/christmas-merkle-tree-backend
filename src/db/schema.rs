@@ -1,8 +1,7 @@
 diesel::table! {
-    trees (id) {
-        id -> Integer,
-        account_id -> VarChar,
+    trees (account_hash) {
         account_hash -> VarChar,
+        account_id -> VarChar,
         merkle_root -> VarChar,
         proof_file_id -> VarChar,
         created_at -> Timestamp,
@@ -10,9 +9,10 @@ diesel::table! {
 }
 
 diesel::table! {
-    messages (id) {
-        id -> Integer,
-        ornament_id -> VarChar,
+    messages (hash) {
+        hash -> VarChar,
+        parent_account_hash -> VarChar,
+        ornament_id -> Integer,
         nickname -> VarChar,
         proof_file_id -> VarChar,
         created_at -> Timestamp,

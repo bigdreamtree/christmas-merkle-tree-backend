@@ -1,7 +1,9 @@
 CREATE TABLE messages (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    hash VARCHAR(64) NOT NULL PRIMARY KEY,
+    parent_account_hash VARCHAR(64) NOT NULL,
     ornament_id INTEGER NOT NULL,
     nickname VARCHAR(255) NOT NULL,
     proof_file_id VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 )

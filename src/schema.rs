@@ -1,22 +1,23 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    messages (id) {
-        id -> Integer,
+    messages (hash) {
+        hash -> Text,
+        parent_account_hash -> Text,
         ornament_id -> Integer,
         nickname -> Text,
         proof_file_id -> Text,
+        body -> Text,
         created_at -> Timestamp,
     }
 }
 
 diesel::table! {
-    trees (id) {
-        id -> Integer,
-        account_id -> Text,
+    trees (account_hash) {
         account_hash -> Text,
+        account_id -> Text,
         merkle_root -> Text,
-        proof_file_id -> Text,
+        proof_file_id -> Nullable<Text>,
         created_at -> Timestamp,
     }
 }

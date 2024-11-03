@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use serde_json::Value;
 
+const PINATA_UPLOAD_URL: &str = "https://uploads.pinata.cloud";
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PinataUploadFileData {
     pub id: String,
@@ -34,7 +36,7 @@ pub async fn upload_file(data: String, file_name: String) -> Result<PinataUpload
 
     // 요청 보내기
     let response = client
-        .post("https://uploads.pinata.cloud/v3/files")
+        .post(PINATA_UPLOAD_URL.to_owned() + "/v3/files")
         .bearer_auth(jwt)
         .multipart(form)
         .send()
@@ -49,21 +51,20 @@ pub async fn upload_file(data: String, file_name: String) -> Result<PinataUpload
     }
 }
 
-pub async fn get_file(file_name: String) -> Result<Value, Box<dyn std::error::Error>> {
+pub async fn get_file(file_id: String) -> Result<PinataUploadFileResponse, Box<dyn std::error::Error>> {
     let jwt = env::var("PINATA_JWT").expect("Pinata JWT not set");
-    let group_id = env::var("PINATA_GROUP_ID").expect("Pinata Group ID not set");
 
     let client = reqwest::Client::new();
 
     let response = client
-        .get("https://uploads.pinata.cloud/v3/files/" + &file_name)
+        .get(PINATA_UPLOAD_URL.to_owned() + "/v3/files/" + &file_id)
         .bearer_auth(jwt)
         .query(&[("pinataMetadata", "true"), ("pinataContent", "true")])
         .send()
         .await?;
 
     if response.status().is_success() {
-        let response_json: Value = response.json().await?;
+        let response_json: PinataUploadFileResponse = response.json().await?;
         Ok(response_json)
     } else {
         let response_text = response.text().await?;

@@ -1,25 +1,41 @@
 use diesel::prelude::*;
 use crate::db::models::Tree;
 use crate::db::models::NewTree;
+use crate::db::models::Message;
+use crate::db::models::NewMessage;
 
-pub fn get_tree(conn: &mut SqliteConnection, account_id_str: &str) -> Result<Tree, diesel::result::Error> {
+pub fn get_tree(conn: &mut SqliteConnection, account_hash_str: &str) -> Result<Tree, diesel::result::Error> {
     use crate::db::schema::trees::dsl::*;
 
-    let tree = trees
-        .filter(account_id.eq(account_id_str))
+    trees
+        .filter(account_hash.eq(account_hash_str))
         .select(Tree::as_select())
-        .first(conn);
-
-    tree
+        .first(conn)
 }
 
 pub fn create_tree(conn: &mut SqliteConnection, new_tree: &NewTree) -> Result<Tree, diesel::result::Error> {
     use crate::db::schema::trees;
 
-    let result = diesel::insert_into(trees::table)
+    diesel::insert_into(trees::table)
         .values(new_tree)
         .returning(Tree::as_returning())
-        .get_result(conn);
+        .get_result(conn)
+}
 
-    result
+pub fn get_messages(conn: &mut SqliteConnection, account_hash_str: &str) -> Result<Vec<Message>, diesel::result::Error> {
+    use crate::db::schema::messages::dsl::*;
+
+    messages
+        .filter(parent_account_hash.eq(account_hash_str))
+        .select(Message::as_select())
+        .load(conn)
+}
+
+pub fn create_message(conn: &mut SqliteConnection, new_message: &NewMessage) -> Result<Message, diesel::result::Error> {
+    use crate::db::schema::messages;
+
+    diesel::insert_into(messages::table)
+        .values(new_message)
+        .returning(Message::as_returning())
+        .get_result(conn)
 }

@@ -1,8 +1,24 @@
 use std::borrow::Cow;
 use axum::http::StatusCode;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use tlsn_core::presentation::{Presentation, PresentationOutput};
 use tlsn_core::CryptoProvider;
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofJson{
+    pub data: String,
+    pub meta: ProofMetadata,
+    pub version: String
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofMetadata{
+    pub notary_url: String,
+    pub websocket_proxy_url: String
+}
 
 pub fn decode_proof(proof_hex: &str) -> Result<Cow<'_, str>, StatusCode> {
     let decoded_proof = match hex::decode(&proof_hex) {

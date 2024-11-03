@@ -5,8 +5,9 @@ mod utils;
 use axum::{routing::get, routing::post, Router};
 use db::connection::create_connection_pool;
 use dotenv::dotenv;
+use routes::messages::{create_tree_message_route, get_tree_messages_route};
 use std::{net::SocketAddr, sync::Arc};
-use crate::routes::trees::{create_tree_route, get_tree_messages_route, create_tree_message_route};
+use crate::routes::trees::create_tree_route;
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
