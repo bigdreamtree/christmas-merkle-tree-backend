@@ -1,4 +1,4 @@
-use axum::{extract::{Path, State}, http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Serialize, Deserialize};
 use crate::{db::{connection::DbPool, models, queries::{create_tree, get_tree}}, utils::{pinata::upload_file, proof::ProofJson}};
 use crate::utils::proof::decode_proof;

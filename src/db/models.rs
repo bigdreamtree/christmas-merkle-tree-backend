@@ -26,6 +26,8 @@ pub struct NewTree {
 #[diesel(table_name = messages)]
 pub struct Message {
     pub hash: String,
+    pub merkle_idx: i32,
+    pub merkle_proof: String,
     pub parent_account_hash: String,
     pub ornament_id: i32,
     pub nickname: String,
@@ -37,6 +39,8 @@ pub struct Message {
 #[diesel(table_name = messages)]
 pub struct NewMessage {
     pub hash: String,
+    pub merkle_idx: i32,
+    pub merkle_proof: String,
     pub parent_account_hash: String,
     pub ornament_id: i32,
     pub nickname: String,

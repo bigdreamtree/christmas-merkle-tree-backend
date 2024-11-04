@@ -1,5 +1,7 @@
 CREATE TABLE messages (
     hash VARCHAR(64) NOT NULL PRIMARY KEY,
+    merkle_idx INTEGER NOT NULL,
+    merkle_proof VARCHAR(255) NOT NULL,
     parent_account_hash VARCHAR(64) NOT NULL,
     ornament_id INTEGER NOT NULL,
     nickname VARCHAR(255) NOT NULL,

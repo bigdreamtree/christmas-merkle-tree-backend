@@ -11,6 +11,8 @@ diesel::table! {
 diesel::table! {
     messages (hash) {
         hash -> VarChar,
+        merkle_idx -> Integer,
+        merkle_proof -> VarChar,
         parent_account_hash -> VarChar,
         ornament_id -> Integer,
         nickname -> VarChar,
