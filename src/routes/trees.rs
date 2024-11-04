@@ -3,8 +3,7 @@ use serde::{Serialize, Deserialize};
 use crate::{db::{connection::DbPool, models, queries::{create_tree, get_tree}}, utils::{pinata::upload_file, proof::ProofJson}};
 use crate::utils::proof::decode_proof;
 use crate::utils::hash;
-use rs_merkle::{MerkleTree, algorithms::Sha256 as Sha256Algorithm};
-use sha2::{Sha256, Digest};
+use rs_merkle::{MerkleTree, algorithms::Sha256, Hasher};
 use regex::Regex;
 use std::sync::Arc;
 
@@ -47,11 +46,9 @@ pub async fn create_tree_route(
     println!("Screen Name: {:?}", screen_name);
 
     // Hash Account Proof
-    let mut hasher = Sha256::new();
-    hasher.update(&screen_name);
-    let account_hash: String = format!("{:X}", hasher.finalize());
+    let account_hash: String = hex::encode(Sha256::hash(screen_name.as_bytes()));
 
-    let account_hash_bytes = match hash::string_to_hash(&account_hash) {
+    let account_hash_bytes = match hash::string_to_hash_bytes(&account_hash) {
         Ok(hash) => hash,
         Err(_) => return Err(StatusCode::BAD_REQUEST),
     };
@@ -72,7 +69,7 @@ pub async fn create_tree_route(
     }
 
     // Create Merkle Tree
-    let mut merkle_tree: MerkleTree<Sha256Algorithm> = MerkleTree::<Sha256Algorithm>::new();
+    let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::<Sha256>::new();
     merkle_tree.insert(account_hash_bytes);
     merkle_tree.commit();
     let merkle_root_hex = match merkle_tree.root_hex() {

@@ -22,6 +22,14 @@ pub fn create_tree(conn: &mut SqliteConnection, new_tree: &NewTree) -> Result<Tr
         .get_result(conn)
 }
 
+pub fn update_tree_merkle_root(conn: &mut SqliteConnection, tree: &Tree, merkle_root: String) -> Result<usize, diesel::result::Error> {
+    use crate::db::schema::trees;
+
+    diesel::update(tree)
+        .set(trees::merkle_root.eq(merkle_root))
+        .execute(conn)
+}
+
 pub fn get_messages(conn: &mut SqliteConnection, account_hash_str: &str) -> Result<Vec<Message>, diesel::result::Error> {
     use crate::db::schema::messages::dsl::*;
 

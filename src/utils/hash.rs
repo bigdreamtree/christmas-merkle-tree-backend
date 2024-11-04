@@ -1,4 +1,4 @@
-pub fn string_to_hash(s: &str) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+pub fn string_to_hash_bytes(s: &str) -> Result<[u8; 32], Box<dyn std::error::Error>> {
     let hash_vec = match hex::decode(s) {
         Ok(hash) => hash,
         Err(_) => return Err("Invalid hash".into()),

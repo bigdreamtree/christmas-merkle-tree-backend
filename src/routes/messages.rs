@@ -2,7 +2,7 @@ use axum::{extract::{Path, State}, http::StatusCode, Json};
 use regex::Regex;
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 use serde::{Serialize, Deserialize};
-use crate::{db::{connection::DbPool, models::NewMessage, queries::{create_message, get_messages, get_tree}}, utils::{pinata::upload_file, proof::{decode_proof, ProofJson}}};
+use crate::{db::{connection::DbPool, models::NewMessage, queries::{create_message, get_messages, get_tree, update_tree_merkle_root}}, utils::{hash::string_to_hash_bytes, pinata::upload_file, proof::{decode_proof, ProofJson}}};
 use std::sync::Arc;
 
 #[derive(Deserialize)]
@@ -80,8 +80,8 @@ pub async fn create_tree_message_route(
     Json(payload): Json<CreateMessage>
 ) -> Result<Json<MessageResponse>, StatusCode> {
 
-    println!("Decoding Proof");
     // Decode Proof
+    println!("Decoding Proof");
     let decoded_proof = match decode_proof(&payload.friendship_proof.data) {
         Ok(proof) => proof,
         Err(status) => return Err(status),
@@ -105,15 +105,15 @@ pub async fn create_tree_message_route(
     };
 
     // Hash Account Proof
-    let account_hash_from_twt: String = hex::encode(Sha256::hash(screen_name.as_bytes()));
-
+    let account_hash_bytes = Sha256::hash(screen_name.as_bytes());
+    let account_hash_from_twt: String = hex::encode(account_hash_bytes);
     if account_hash_from_twt != account_hash {
         println!("Account Hash Mismatch {:?} != {:?}", account_hash_from_twt, account_hash);
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    println!("Loading Mekle Tree");
     // Get Existing Tree
+    println!("Loading mekle tree");
     let conn: &mut diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::SqliteConnection>> = &mut pool.get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let tree = match get_tree(conn, &account_hash) {
         Ok(tree) => tree,
@@ -136,22 +136,48 @@ pub async fn create_tree_message_route(
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         },
     };
-    let leaves: Vec<[u8; 32]> = messages.iter().map(|message| Sha256::hash(message.hash.as_bytes())).collect();
-
+    let mut leaves: Vec<[u8; 32]> = messages.iter().map(|message| string_to_hash_bytes(&message.hash).unwrap()).collect();
+    leaves.insert(0, account_hash_bytes);
+    
     // Load Merkle Tree
+    println!("Loading merkle tree from leaves");
     let mut merkle_tree: MerkleTree<Sha256> = MerkleTree::<Sha256>::from_leaves(&leaves);
+
+    let new_leaves: Vec<String> = merkle_tree.leaves().unwrap().iter().map(|node| hex::encode(node)).collect();
+    println!("Leaves: {:?}", new_leaves);
+
+    // Check merkle is valid
+    let initial_merkle_root_hex = merkle_tree.root_hex().unwrap();
+    if tree.merkle_root != initial_merkle_root_hex {
+        println!("Merkle Root Mismatch {:?} != {:?}", tree.merkle_root, initial_merkle_root_hex);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Prepare new message
+    let message_idx = messages.len();
+    let proof_hash = Sha256::hash(payload.friendship_proof.data.as_bytes());
+    let body_hash = Sha256::hash(payload.body.as_bytes());
+    let message_hash = Sha256::hash(&[proof_hash, body_hash].concat());
+    let message_hash_hex = hex::encode(message_hash);
+
+    // Check if message already exists
+    for message in &messages {
+        if message.hash == message_hash_hex {
+            return Err(StatusCode::CONFLICT);
+        }
+    }
+
+    // Insert new message to Merkle Tree
+    merkle_tree.insert(message_hash);
+    merkle_tree.commit();
+
     let merkle_root = match merkle_tree.root() {
         Some(root) => root,
         None => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    // Insert new message to Merkle Tree
-    let message_idx = messages.len();
-    let message_hash = Sha256::hash(payload.body.as_bytes());
-    merkle_tree.insert(message_hash);
-    merkle_tree.commit();
-
     // Merkle Proof Verification
+    println!("Verifying merkle proof");
     let indices_to_prove = [message_idx];
     let leaves_to_prove = [message_hash];
     let merkle_proof =  merkle_tree.proof(&indices_to_prove);
@@ -161,14 +187,7 @@ pub async fn create_tree_message_route(
     let result = proof.verify(merkle_root, &indices_to_prove, &leaves_to_prove, merkle_tree.leaves_len());
     print!("Merkle Proof Verification Result: {:?}", result);
 
-    // Check merkle is valid
-    let merkle_root_hex = hex::encode(merkle_root);
-    if tree.merkle_root != merkle_root_hex {
-        return Err(StatusCode::BAD_REQUEST);
-    }
-
     // Save Proof to Pinata
-    let message_hash_hex = hex::encode(message_hash);
     let serialized_proof = match serde_json::to_string(&payload.friendship_proof) {
         Ok(tree) => tree,
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -190,6 +209,7 @@ pub async fn create_tree_message_route(
         parent_account_hash: account_hash,
         ornament_id: payload.ornament_id,
         nickname: payload.nickname,
+        body: payload.body,
         proof_file_id: upload_result.data.id,
     };
 
@@ -201,14 +221,22 @@ pub async fn create_tree_message_route(
         },
     };
 
+    let new_merkle_root_hex = hex::encode(merkle_root);
+    println!("Updating tree merkle root to {:?}", new_merkle_root_hex);
+
+    if update_tree_merkle_root(conn, &tree, new_merkle_root_hex.to_owned()) != Ok(1) {
+        println!("Failed to update tree merkle root");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
     let response = MessageResponse {
         hash: message.hash,
         merkle_idx: message.merkle_idx,
         merkle_proof: message.merkle_proof,
         ornament_id: message.ornament_id,
         nickname: message.nickname,
-        merkle_root: merkle_root_hex,
-        body: Some(payload.body),
+        merkle_root: new_merkle_root_hex,
+        body: Some(message.body),
     };
 
     Ok(Json(response))

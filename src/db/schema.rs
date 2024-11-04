@@ -16,6 +16,7 @@ diesel::table! {
         parent_account_hash -> VarChar,
         ornament_id -> Integer,
         nickname -> VarChar,
+        body -> Text,
         proof_file_id -> VarChar,
         created_at -> Timestamp,
     }

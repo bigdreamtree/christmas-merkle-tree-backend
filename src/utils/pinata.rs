@@ -1,7 +1,6 @@
 use reqwest::multipart;
 use serde::{Deserialize, Serialize};
 use std::env;
-use serde_json::Value;
 
 const PINATA_UPLOAD_URL: &str = "https://uploads.pinata.cloud";
 
