@@ -162,23 +162,23 @@ pub async fn create_tree_message_route(
     }
 
     // Parse recv data to get screen_name
-    // let re = Regex::new(r#""screen_name":"([^"]+)""#).unwrap();
-    // let caps = match re.captures(&decoded_proof) {
-    //     Some(caps) => caps,
-    //     None => return Err(StatusCode::BAD_REQUEST),
-    // };
-    // let screen_name = match caps.get(1) {
-    //     Some(screen_name) => screen_name.as_str().to_string(),
-    //     None => return Err(StatusCode::BAD_REQUEST),
-    // };
+    let re = Regex::new(r#""screen_name":"([^"]+)""#).unwrap();
+    let caps = match re.captures(&decoded_proof) {
+        Some(caps) => caps,
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+    let screen_name = match caps.get(1) {
+        Some(screen_name) => screen_name.as_str().to_string(),
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
 
     // Hash Account Proof
-    // let account_hash_bytes = Sha256::hash(screen_name.as_bytes());
-    // let account_hash_from_twt: String = hex::encode(account_hash_bytes);
-    // if account_hash_from_twt != account_hash {
-    //     println!("Account Hash Mismatch {:?} != {:?}", account_hash_from_twt, account_hash);
-    //     return Err(StatusCode::BAD_REQUEST);
-    // }
+    let account_hash_bytes = Sha256::hash(screen_name.as_bytes());
+    let account_hash_from_twt: String = hex::encode(account_hash_bytes);
+    if account_hash_from_twt != account_hash {
+        println!("Account Hash Mismatch {:?} != {:?}", account_hash_from_twt, account_hash);
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     // Get Existing Tree
     println!("Loading mekle tree");
