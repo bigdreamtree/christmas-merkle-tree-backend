@@ -1,8 +1,7 @@
 use axum::{extract::{Path, State}, http::StatusCode, Json};
-use regex::Regex;
 use rs_merkle::{algorithms::Sha256, Hasher, MerkleProof, MerkleTree};
 use serde::{Serialize, Deserialize};
-use crate::{db::{connection::DbPool, models::NewMessage, queries::{create_message, get_messages, get_tree, update_tree_merkle_root}}, utils::{hash::string_to_hash_bytes, pinata::upload_file, proof::{decode_proof, ProofJson}}};
+use crate::{db::{connection::DbPool, models::NewMessage, queries::{create_message, get_messages, get_tree, update_tree_merkle_root}}, utils::{hash::string_to_hash_bytes, pinata::upload_file, proof::{check_friendship_with_proof, decode_proof, parse_screen_name, ProofJson}}};
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
@@ -78,14 +77,9 @@ pub async fn get_tree_messages_reveal_route(
     };
 
     // Parse recv data to get screen_name
-    let re = Regex::new(r#""screen_name":"([^"]+)""#).unwrap();
-    let caps = match re.captures(&decoded_proof) {
-        Some(caps) => caps,
-        None => return Err(StatusCode::BAD_REQUEST),
-    };
-    let screen_name = match caps.get(1) {
-        Some(screen_name) => screen_name.as_str().to_string(),
-        None => return Err(StatusCode::BAD_REQUEST),
+    let screen_name = match parse_screen_name(&decoded_proof) {
+        Ok(screen_name) => screen_name,
+        Err(status) => return Err(status),
     };
 
     // Hash Account Proof
@@ -156,20 +150,14 @@ pub async fn create_tree_message_route(
     };
 
     // Parse recv data to check if following each other
-    let re = Regex::new(r#""followed_by":\s*true\s*,\s*"following":\s*true"#).unwrap();
-    if re.is_match(&decoded_proof) == false {
+    if check_friendship_with_proof(&decoded_proof) == false {
         return Err(StatusCode::BAD_REQUEST);
     }
 
     // Parse recv data to get screen_name
-    let re = Regex::new(r#""screen_name":"([^"]+)""#).unwrap();
-    let caps = match re.captures(&decoded_proof) {
-        Some(caps) => caps,
-        None => return Err(StatusCode::BAD_REQUEST),
-    };
-    let screen_name = match caps.get(1) {
-        Some(screen_name) => screen_name.as_str().to_string(),
-        None => return Err(StatusCode::BAD_REQUEST),
+    let screen_name = match parse_screen_name(&decoded_proof) {
+        Ok(screen_name) => screen_name,
+        Err(status) => return Err(status),
     };
 
     // Hash Account Proof

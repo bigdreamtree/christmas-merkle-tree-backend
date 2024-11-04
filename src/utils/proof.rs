@@ -65,18 +65,9 @@ pub fn parse_screen_name(
 }
 
 pub fn check_friendship_with_proof(
-    proof_hex: &str,
-    friendship_proof_hex: &str,
-) -> Result<bool, StatusCode> {
-    let decoded_proof = match decode_proof(proof_hex) {
-        Ok(proof) => proof,
-        Err(status) => return Err(status),
-    };
-
-    let decoded_friendship_proof = match decode_proof(friendship_proof_hex) {
-        Ok(proof) => proof,
-        Err(status) => return Err(status),
-    };
-
-    Ok(decoded_proof == decoded_friendship_proof)
+    decoded_proof: &str,
+) -> bool {
+    // Parse recv data to check if following each other
+    let re = Regex::new(r#""followed_by":\s*true\s*,\s*"following":\s*true"#).unwrap();
+    return re.is_match(&decoded_proof)
 }

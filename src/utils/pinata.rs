@@ -49,24 +49,3 @@ pub async fn upload_file(data: String, file_name: String) -> Result<PinataUpload
         Err(format!("Failed to upload file: {response_text}").into())
     }
 }
-
-pub async fn get_file(file_id: String) -> Result<PinataUploadFileResponse, Box<dyn std::error::Error>> {
-    let jwt = env::var("PINATA_JWT").expect("Pinata JWT not set");
-
-    let client = reqwest::Client::new();
-
-    let response = client
-        .get(PINATA_UPLOAD_URL.to_owned() + "/v3/files/" + &file_id)
-        .bearer_auth(jwt)
-        .query(&[("pinataMetadata", "true"), ("pinataContent", "true")])
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        let response_json: PinataUploadFileResponse = response.json().await?;
-        Ok(response_json)
-    } else {
-        let response_text = response.text().await?;
-        Err(format!("Failed to get file: {response_text}").into())
-    }
-}

@@ -29,12 +29,12 @@ pub struct Message {
     pub hash: String,
     pub merkle_idx: i32,
     pub merkle_proof: String,
-    pub parent_account_hash: String,
+    // pub parent_account_hash: String,
     pub ornament_id: i32,
     pub nickname: String,
     pub body: String,
-    pub proof_file_id: String,
-    pub created_at: NaiveDateTime,
+    // pub proof_file_id: String,
+    // pub created_at: NaiveDateTime,
 }
 
 #[derive(Insertable)]

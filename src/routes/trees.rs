@@ -43,8 +43,6 @@ pub async fn create_tree_route(
         None => return Err(StatusCode::BAD_REQUEST),
     };
 
-    println!("Screen Name: {:?}", screen_name);
-
     // Hash Account Proof
     let account_hash: String = hex::encode(Sha256::hash(screen_name.as_bytes()));
 
