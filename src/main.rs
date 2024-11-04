@@ -14,6 +14,11 @@ use tower_http::cors::CorsLayer;
 async fn main() {
     dotenv().ok();
     
+    // env check
+    let _ = std::env::var("PINATA_JWT").expect("PINATA_JWT must be set");
+    let _ = std::env::var("PINATA_GROUP_ID").expect("PINATA_GROUP_ID must be set");
+    let _ = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+
     tracing_subscriber::fmt()
     .with_max_level(tracing::Level::DEBUG)
     .init();
