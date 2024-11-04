@@ -15,7 +15,7 @@ pub struct PinataUploadFileData {
     pub mime_type: String,
     pub user_id: String,
     pub group_id: String,
-    pub is_duplicate: bool,
+    pub is_duplicate: Option<bool>,
     pub created_at: String,
 }
 
