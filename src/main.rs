@@ -5,7 +5,7 @@ mod utils;
 use axum::{routing::get, routing::post, Router};
 use db::connection::create_connection_pool;
 use dotenv::dotenv;
-use routes::messages::{create_tree_message_route, get_tree_messages_route};
+use routes::messages::{create_tree_message_route, get_tree_messages_reveal_route, get_tree_messages_route};
 use std::{net::SocketAddr, sync::Arc};
 use crate::routes::trees::create_tree_route;
 use tower_http::cors::CorsLayer;
@@ -30,6 +30,7 @@ async fn main() {
         .route("/v1/trees", post(create_tree_route))
         .route("/v1/trees/:account_hash/messages", get(get_tree_messages_route))
         .route("/v1/trees/:account_hash/messages", post(create_tree_message_route))
+        .route("/v1/trees/:account_hash/messages/reveal", post(get_tree_messages_reveal_route))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(pool));
 

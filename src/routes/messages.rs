@@ -5,12 +5,6 @@ use serde::{Serialize, Deserialize};
 use crate::{db::{connection::DbPool, models::NewMessage, queries::{create_message, get_messages, get_tree, update_tree_merkle_root}}, utils::{hash::string_to_hash_bytes, pinata::upload_file, proof::{decode_proof, ProofJson}}};
 use std::sync::Arc;
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RevealTreeMessages {
-    pub account_proof: ProofJson,
-}
-
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageResponse {
@@ -59,6 +53,80 @@ pub async fn get_tree_messages_route(
             merkle_idx: message.merkle_idx,
             merkle_proof: message.merkle_proof.clone(),
             body: None,
+        }
+    }).collect();
+
+    Ok(Json(response))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevealTreeMessages {
+    pub account_proof: ProofJson,
+}
+
+pub async fn get_tree_messages_reveal_route(
+    State(pool): State<Arc<DbPool>>,
+    Path(account_hash): Path<String>,
+    Json(payload): Json<RevealTreeMessages>
+) -> Result<Json<Vec<MessageResponse>>, StatusCode> {
+
+    // Check Proof
+    let decoded_proof = match decode_proof(&payload.account_proof.data) {
+        Ok(proof) => proof,
+        Err(status) => return Err(status),
+    };
+
+    // Parse recv data to get screen_name
+    let re = Regex::new(r#""screen_name":"([^"]+)""#).unwrap();
+    let caps = match re.captures(&decoded_proof) {
+        Some(caps) => caps,
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+    let screen_name = match caps.get(1) {
+        Some(screen_name) => screen_name.as_str().to_string(),
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Hash Account Proof
+    let parsed_account_hash: String = hex::encode(Sha256::hash(screen_name.as_bytes()));
+
+    if account_hash != parsed_account_hash {
+        println!("Account Hash Mismatch {:?} != {:?}", parsed_account_hash, account_hash);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Get Existing Messages
+    let conn: &mut diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::SqliteConnection>> = &mut pool.get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let tree = match get_tree(conn, &account_hash) {
+        Ok(tree) => tree,
+        Err(diesel::result::Error::NotFound) => {
+            return Err(StatusCode::NOT_FOUND);
+        },
+        Err(err) => {
+            println!("{:?}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        },
+    };
+
+    let messages = match get_messages(conn, &account_hash) {   
+        Ok(messages) => messages,
+        Err(diesel::result::Error::NotFound) => vec![],
+        Err(err) => {
+            println!("{:?}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        },
+    };
+
+    let response = messages.iter().map(|message| {
+        MessageResponse {
+            hash: message.hash.clone(),
+            ornament_id: message.ornament_id,
+            nickname: message.nickname.clone(),
+            merkle_root: tree.merkle_root.clone(),
+            merkle_idx: message.merkle_idx,
+            merkle_proof: message.merkle_proof.clone(),
+            body: Some(message.body.clone()),
         }
     }).collect();
 
