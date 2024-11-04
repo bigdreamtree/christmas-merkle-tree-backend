@@ -29,7 +29,7 @@ async fn main() {
         .with_state(Arc::new(pool));
 
     let port: u16 = std::env::var("PORT").unwrap_or("3000".to_string()).parse().unwrap();
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     
     println!("Server running on http://{}", addr);
