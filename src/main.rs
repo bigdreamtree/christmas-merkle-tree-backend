@@ -28,7 +28,8 @@ async fn main() {
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(pool));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let port: u16 = std::env::var("PORT").unwrap_or("3000".to_string()).parse().unwrap();
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     
     println!("Server running on http://{}", addr);
